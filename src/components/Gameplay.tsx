@@ -80,7 +80,7 @@ const formatNPCsCodex = (npcs: any[]) => {
     .map((npc, idx) => {
       const lines = [`NPC ${idx + 1}:`];
       for (const [key, value] of Object.entries(npc)) {
-        if (["id", "avatar", "isPinned"].includes(key)) continue;
+        if (["id", "avatar", "isPinned", "appearance"].includes(key)) continue;
         if (value) {
           const formattedKey = key
             .replace(/([A-Z])/g, " $1")
