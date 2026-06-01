@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -133,6 +133,65 @@ const LocalTimer = ({ isGenerating, processingTime }: { isGenerating: boolean, p
   return <>{formatTimeStr(isGenerating ? timer : processingTime)}</>;
 };
 
+export interface ActionInputRef {
+  clear: () => void;
+}
+
+const ActionInput = forwardRef<ActionInputRef, { isGenerating: boolean, theme: any, onSend: (text: string) => void }>(({ isGenerating, theme, onSend }, ref) => {
+  const [inputAction, setInputAction] = useState("");
+
+  useImperativeHandle(ref, () => ({
+    clear: () => setInputAction("")
+  }));
+
+  const handleSend = () => {
+    if (!inputAction.trim() || isGenerating) return;
+    onSend(inputAction.trim());
+    setInputAction("");
+  };
+
+  return (
+    <div className="w-full max-w-5xl mx-auto relative group">
+      <textarea
+        value={inputAction}
+        onChange={(e) => setInputAction(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+          }
+        }}
+        placeholder={
+          isGenerating
+            ? "Matrix Lite v3 đang vận hành..."
+            : "Hành động tiếp theo của bạn (hỗ trợ xuống dòng bằng Shift+Enter)..."
+        }
+        className={`w-full theme-input border-transparent focus:border-blue-500/50 rounded-xl py-4 pl-4 pr-14 theme-text-base placeholder:text-slate-500 dark-theme:placeholder:text-white/30 outline-none resize-none min-h-[60px] max-h-[150px] custom-scrollbar focus:ring-1 focus:ring-blue-500/30 transition-all font-medium disabled:opacity-50 ${
+          theme.group === "Dark"
+            ? "focus:bg-black/60"
+            : "bg-white text-[#0f172a]"
+        }`}
+        rows={
+          inputAction.split("\n").length > 1
+            ? Math.min(inputAction.split("\n").length, 5)
+            : 1
+        }
+        disabled={isGenerating}
+      />
+      <button
+        onClick={handleSend}
+        disabled={!inputAction.trim() || isGenerating}
+        className="absolute right-2 bottom-2 p-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 theme-text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 cursor-pointer"
+      >
+        <Send
+          size={18}
+          className={"translate-x-0.5 " + (isGenerating ? "opacity-50" : "")}
+        />
+      </button>
+    </div>
+  );
+});
+
 export default function Gameplay() {
   const theme = useStore((state) => state.theme);
   const gameData = useStore((state) => state.gameData);
@@ -167,7 +226,8 @@ export default function Gameplay() {
     setLeftOpen(!isMobile);
     setRightOpen(!isMobile);
   }, [isMobile]);
-  const [inputAction, setInputAction] = useState("");
+  const actionInputRef = useRef<ActionInputRef>(null);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summarizeDuration, setSummarizeDuration] = useState(0);
@@ -1129,10 +1189,8 @@ Hành động tiếp theo của người chơi: ${userAction}`;
     }
   };
 
-  const handleSend = () => {
-    if (!inputAction.trim() || isGenerating) return;
-    const actionText = inputAction.trim();
-    setInputAction("");
+  const handleSend = (actionText: string) => {
+    if (isGenerating) return;
 
     // Thêm User message
     const userMsgId = Date.now().toString() + "_u";
@@ -1819,7 +1877,7 @@ Hành động tiếp theo của người chơi: ${userAction}`;
                                           <button
                                             onClick={() => {
                                               if (!isGenerating) {
-                                                setInputAction("");
+                                                actionInputRef.current?.clear();
                                                 const userMsgId =
                                                   Date.now().toString() + "_u";
                                                 setMessages((prev) => [
@@ -1914,48 +1972,8 @@ Hành động tiếp theo của người chơi: ${userAction}`;
                 : "border-black/10 bg-[#EFE9DD]/90 backdrop-blur-xl"
             }`}
           >
-            <div className="w-full max-w-5xl mx-auto relative group">
-              <textarea
-                value={inputAction}
-                onChange={(e) => setInputAction(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder={
-                  isGenerating
-                    ? "Matrix Lite v3 đang vận hành..."
-                    : "Hành động tiếp theo của bạn (hỗ trợ xuống dòng bằng Shift+Enter)..."
-                }
-                className={`w-full theme-input border-transparent focus:border-blue-500/50 rounded-xl py-4 pl-4 pr-14 theme-text-base placeholder:text-slate-500 dark-theme:placeholder:text-white/30 outline-none resize-none min-h-[60px] max-h-[150px] custom-scrollbar focus:ring-1 focus:ring-blue-500/30 transition-all font-medium disabled:opacity-50 ${
-                  theme.group === "Dark"
-                    ? "focus:bg-black/60"
-                    : "bg-white text-[#0f172a]"
-                }`}
-                rows={
-                  inputAction.split("\n").length > 1
-                    ? Math.min(inputAction.split("\n").length, 5)
-                    : 1
-                }
-                disabled={isGenerating}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!inputAction.trim() || isGenerating}
-                className="absolute right-2 bottom-2 p-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 theme-text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 cursor-pointer"
-              >
-                <Send
-                  size={18}
-                  className={
-                    "translate-x-0.5 " + (isGenerating ? "opacity-50" : "")
-                  }
-                />
-              </button>
-            </div>
-
-            <div className="w-full max-w-5xl mx-auto flex items-center justify-between">
+            <ActionInput ref={actionInputRef} isGenerating={isGenerating} theme={theme} onSend={handleSend} />
+            <div className="w-full max-w-5xl mx-auto flex items-center justify-between mt-3">
               {/* Pagination */}
               <div
                 className={`flex items-center gap-1.5 md:gap-3 theme-panel shadow-none rounded-lg p-1 border ${theme.group === "Dark" ? "border-white/5" : "border-black/10 bg-[#FAF6F0]"}`}
